@@ -4,6 +4,7 @@ import logging
 import os
 import platform
 import sys
+import json
 
 from importlib import import_module
 
@@ -25,7 +26,7 @@ class ScriptExecutor():  # pylint:disable=too-few-public-methods
         Parameters
         ----------
         command: str
-            The faceswap command that is being executed
+            The faceswap_original command that is being executed
         """
     def __init__(self, command):
         self._command = command.lower()
@@ -36,13 +37,25 @@ class ScriptExecutor():  # pylint:disable=too-few-public-methods
         Returns
         -------
         class: Faceswap Script
-            The uninitialized script from the faceswap scripts folder.
+            The uninitialized script from the faceswap_original scripts folder.
         """
         self._test_for_tf_version()
         self._test_for_gui()
         cmd = os.path.basename(sys.argv[0])
-        src = "tools.{}".format(self._command.lower()) if cmd == "tools.py" else "scripts"
+        pypath = os.path.dirname(os.path.realpath(sys.argv[0]))
+        if not pypath.endswith("faceswap_original"):
+            pypath = os.path.join(pypath, "faceswap_original")
+        _config_file = os.path.join(pypath, "config", ".faceswap_original")
+        with open(_config_file, "r") as cnf:
+            config = json.load(cnf)
+        original = config.get("original", True)
+        if original:
+            src = "tools.{}".format(self._command.lower()) if cmd == "tools.py" else "scripts"
+        else:
+            src = "tools.{}".format(self._command.lower())
+
         mod = ".".join((src, self._command.lower()))
+        print(mod)
         module = import_module(mod)
         script = getattr(module, self._command.title())
         return script
@@ -193,11 +206,11 @@ class ScriptExecutor():  # pylint:disable=too-few-public-methods
             logger.exception("Got Exception on main handler:")
             logger.critical("An unexpected crash has occurred. Crash report written to '%s'. "
                             "You MUST provide this file if seeking assistance. Please verify you "
-                            "are running the latest version of faceswap before reporting",
+                            "are running the latest version of faceswap_original before reporting",
                             crash_file)
 
-        finally:
-            safe_shutdown(got_error=not success)
+        # finally:
+        #     safe_shutdown(got_error=not success)
 
     def _configure_backend(self, arguments):
         """ Configure the backend.
